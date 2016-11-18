@@ -3,15 +3,18 @@ import {
   StyleSheet,
   View,
   Text,
+  Platform,
+  BackAndroid,
 } from 'react-native'
 
 
-import { Router, Scene, ActionConst, TabBar}  from 'react-native-router-flux'  //导航
+import { Router, Scene, ActionConst, TabBar, Actions ,Route}  from 'react-native-router-flux'  //导航
 import TabIcon from './TabIcon'    //tabbar 的每个icon
 import Advertisement from './advertisement'  //广告页
 import Home from './HomeTAB/home' //tabbar的主页
 import Reader from './ReaderTAB/reader'  //阅读
 import HomeDetail from './HomeTAB/homeDetail'
+import Basic from './Basic'    //侧栏
 
 
 
@@ -23,6 +26,34 @@ const ICON_IMG = [
 ]
 
 class App extends Component {
+
+  componentWillMount() {
+    if (Platform.OS === 'android') {
+      BackAndroid.addEventListener('hardwareBackPress', this.onBackAndroid);
+    }
+  }
+  componentWillUnmount() {
+    if (Platform.OS === 'android') {
+      BackAndroid.removeEventListener('hardwareBackPress', this.onBackAndroid);
+    }
+  }
+  // 注意这里为了方便后续removeEventListener，采用了用绑定this的函数属性的方法来创建回调函数，而非箭头函数或者bind(this)
+  onBackAndroid = () => {
+      console.log('返回000000');
+
+      // alert('在更路由')
+
+    if (this.lastBackPressed && this.lastBackPressed + 2000 >= Date.now()) {
+      //最近2秒内按过back键，可以退出应用。
+      return false;
+    }
+    this.lastBackPressed = Date.now();
+    // alert('再按一次退出应用')
+    // ToastAndroid.show('再按一次退出应用');
+    return true;
+
+  }
+
   render() {
     return (
       <Router>
@@ -30,7 +61,10 @@ class App extends Component {
           <Scene key = "advertisementKey" component = {Advertisement} title = "广告页" initial = {true}
           hideNavBar = {true}/>
 
-          <Scene key = "HomeDetailKey" component = {HomeDetail}  type = {ActionConst.PUSH} title = "知乎" initial = {false}
+          <Scene key = "sideMenuKey" component = {Basic} title = "" initial = {false}
+          hideNavBar = {true} type = {ActionConst.RESET}/>
+
+          <Scene key = "HomeDetailKey" component = {HomeDetail}  type = {ActionConst.PUSH} title = "" initial = {false}
           hideNavBar = {false}/>
 
           <Scene key = "TabbarKey"  tabs = {true} hideNavBar = {false} type = {ActionConst.RESET}  tabBarStyle={ styles.tabBar }  pressOpacity = {1}  default="HomeKey">

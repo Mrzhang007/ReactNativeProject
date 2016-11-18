@@ -10,6 +10,7 @@ import {
   NavigatorIOS,
   TouchableOpacity,
   ActivityIndicator,//菊花控件
+  Platform,
 } from 'react-native';
 
 
@@ -18,7 +19,7 @@ import HomeTopScrollView from './homeTopScrollView'
 
 var DataURL =  new Request('http://news-at.zhihu.com/api/4/news/latest');
 
-var top_stories = ['123','23332']   //图片轮播
+var top_stories = []   //图片轮播
 
 class Home extends Component {
   constructor(props) {
@@ -29,7 +30,7 @@ class Home extends Component {
       dataSource: new ListView.DataSource({
         rowHasChanged: (r1, r2) => r1 !== r2
       }),
-      isloding: 'ture',
+      animating: true,
     };
     this.renderRow = this.renderRow.bind(this);
     this.renderHeader = this.renderHeader.bind(this);
@@ -52,31 +53,18 @@ class Home extends Component {
       }
     })
     .then((responseData) => {
-      // console.log('数据'+JSON.stringify(responseData));
+      console.log('数据');
       top_stories = responseData.top_stories
       // console.log(top_stories);
       this.setState({//setState会触发一次重绘
         dataSource: this.state.dataSource.cloneWithRows(responseData.stories),
-        isloding: 'false',
+        animating: false,
       });
       return responseData
     })
     .catch((error) => {
         console.error('错误'+error);
     });
-    // this.setState({ //setState会触发一次重绘
-    //   dataSource: this.state.dataSource.cloneWithRows([{'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'},
-    //                                                     {'title':'ReactNativeLearn ListView'}])
-    // });
-
   }
 
   cellSelected(rowData){
@@ -84,8 +72,6 @@ class Home extends Component {
     Actions.HomeDetailKey({newsData: rowData})
 
   }
-
-
   //  渲染cell
   renderRow(rowData) {
     return (
@@ -128,6 +114,15 @@ class Home extends Component {
       }}
       source = {{uri:rowData.images[0]}}
       />
+        <View style = {{
+          position: 'absolute',
+          top: 89.5,
+          backgroundColor: 'rgba(238,238,238,1)',
+          height: 0.5,
+          left: 15,
+          width: Dimensions.get('window').width-30,
+        }} />
+
       </View>
       </TouchableOpacity>
     );
@@ -149,36 +144,73 @@ class Home extends Component {
     )
   }
 
+
+//传递方法
+  // static propTypes = {
+  //   dataChanged: React.PropTypes.func.isRequired,
+  // };
+
   render() {
-    return (
-      <View style={styles.container}>
-        <ListView
-         style = {styles.listContainer}
-         dataSource = {this.state.dataSource}
-         renderRow = {this.renderRow}
-         renderSeparator = {this.renderSeparator}
-         renderHeader = {this.renderHeader}
-         enableEmptySections = {true}
-         automaticallyAdjustContentInsets = {false}// 如果是scrollView和ListVIew去掉20像素的空白
-        />
-      </View>
-    );
+
+    if (Platform.OS === 'ios') {
+      if (this.state.animating) {
+        return (
+          <View style = {{flex:1,backgroundColor:'#F5FCFF',alignItems: 'center',
+          justifyContent: 'center',}}>
+            <ActivityIndicator
+              animating={this.state.animating}
+              style={{
+                width: 80,
+                height: 80,
+              }}
+              size="small" />
+          </View>
+        )
+      }else {
+        return (
+          <View style={styles.container}>
+            <ListView
+             style = {styles.listContainer}
+             dataSource = {this.state.dataSource}
+             renderRow = {this.renderRow}
+             renderSeparator = {this.renderSeparator}
+             renderHeader = {this.renderHeader}
+             enableEmptySections = {true}
+             automaticallyAdjustContentInsets = {false}// 如果是scrollView和ListVIew去掉20像素的空白
+            />
+          </View>
+        );
+      }
+    }else {
+      return (
+        <View style={styles.container}>
+          <ListView
+           style = {styles.listContainer}
+           dataSource = {this.state.dataSource}
+           renderRow = {this.renderRow}
+           renderSeparator = {this.renderSeparator}
+           renderHeader = {this.renderHeader}
+           enableEmptySections = {true}
+           automaticallyAdjustContentInsets = {false}// 如果是scrollView和ListVIew去掉20像素的空白
+          />
+        </View>
+      );
+    }
+
+    // alert(JSON.stringify(themesDataProps))
   }
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginBottom: 49,
+    // marginBottom: 49,
     // width: Dimensions.get('window').width,
     // height: Dimensions.get('window').height-49,
   },
-  // listContainer: {
-  //   // flex:1,
-  //   height: 100,
-  //   // marginTop: 100,
-  //   backgroundColor: 'rgb(237, 240, 235)',//listView 背景色
-  // },
+  listContainer: {
+    backgroundColor: 'rgb(237, 240, 235)',//listView 背景色
+  },
   // rowSeparator: {
   //   // marginLeft: 15,
   //   // marginRight: 15,
@@ -191,16 +223,5 @@ const styles = StyleSheet.create({
     height: 220,
   },
 });
-
-
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1, //当一个元素定义了flex属性时，表示该元素是可伸缩的（flex的属性值大于0的时候才可伸缩）。
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     backgroundColor: '#F5FCFF',
-//   },
-// });
 
 export default Home;

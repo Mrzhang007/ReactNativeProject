@@ -11,11 +11,12 @@ import Global from './global'
 
 import { Actions }  from 'react-native-router-flux'
 
+
 export default class Advertisement extends Component {
 
   _skipButtonHandle() {
     // alert('122')
-    Actions.TabbarKey();
+    Actions.sideMenuKey();
   }
 
   render() {
