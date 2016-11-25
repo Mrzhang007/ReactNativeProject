@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,//菊花控件
   Platform,
+  RefreshControl,
 } from 'react-native';
 
 
@@ -20,31 +21,52 @@ import HomeTopScrollView from './homeTopScrollView'
 var DataURL =  new Request('http://news-at.zhihu.com/api/4/news/latest');
 
 var top_stories = []   //图片轮播
+var stories = []
+var daily; //当前请求的日子的新闻
+
+var Car = require('./car.json')
+var allArr = []
+
+var page = 0;
 
 class Home extends Component {
   constructor(props) {
+
+    var getSectionHeaderData = (dataBlob,sectionID) => {
+        return dataBlob[sectionID];
+    };
+    var getRowData = (dataBlob,sectionID,rowID) => {
+        return dataBlob[sectionID + ":" + rowID];
+    };
     // console.log(props.myProp);
     super(props);
     this.fetchNewsData = this.fetchNewsData.bind(this);
     this.state = {
       dataSource: new ListView.DataSource({
-        rowHasChanged: (r1, r2) => r1 !== r2
+        getSectionHeaderData:getSectionHeaderData,
+        getRowData:getRowData,
+        sectionHeaderHasChanged: (r1, r2) => r1 !== r2,
+        rowHasChanged:(s1, s2) => s1 != s2,
       }),
       animating: true,
     };
     this.renderRow = this.renderRow.bind(this);
     this.renderHeader = this.renderHeader.bind(this);
+    // this.getRefreshControl = this.getRefreshControl.bind(this);
+    this.onEndReached = this.onEndReached.bind(this);
+    this.renderFooter = this.renderFooter.bind(this);
+    this.renderSectionHeader = this.renderSectionHeader.bind(this);
   }
 
 //相当于ViewDidLoad
   componentDidMount() {//React会在react-native组件加载完成后，使用componentDidMount方法发送请求，并且只发送一次。
     // this.fetchNewsData();
-    this.fetchNewsData();
+    this.fetchNewsData(DataURL);
   }
   // //  设置数据
-  fetchNewsData() {
+  fetchNewsData(url) {
 
-    fetch(DataURL)
+    fetch(url)
     .then((response)=>{
       if (response.ok) {
             return response.json()
@@ -53,14 +75,38 @@ class Home extends Component {
       }
     })
     .then((responseData) => {
-      console.log('数据');
+      // console.log(JSON.stringify(responseData));
       top_stories = responseData.top_stories
+      stories =  responseData.stories;
+
+      allArr.push(responseData)
+      var dataBlob = {},sectionIDs = [],rowIDs = [];
+      for (var i = 0; i < allArr.length; i++) {
+        sectionIDs.push(i) //第一个section
+        dataBlob[i] = allArr[i].date; //时间
+        // alert(JSON.stringify(allArr[i].date))
+        // 3.设置该组中每条数据的结构
+        rowIDs[i] = []
+
+        rowStories = allArr[i].stories
+
+        for (var j = 0; j < rowStories.length; j++) {
+          //    改组中的每条对应的rowId
+          rowIDs[i].push(j);
+          // 把每一行中的内容放入dataBlob对象中
+          dataBlob[i+':'+j] = rowStories[j]
+        }
+      }
+
+      // alert(JSON.stringify(dataBlob))
       // console.log(top_stories);
       this.setState({//setState会触发一次重绘
-        dataSource: this.state.dataSource.cloneWithRows(responseData.stories),
+        // dataSource: this.state.dataSource.cloneWithRows(stories),
+        dataSource: this.state.dataSource.cloneWithRowsAndSections(dataBlob,sectionIDs,rowIDs),
         animating: false,
+        isLoadingMore: false,
       });
-      return responseData
+      // return responseData
     })
     .catch((error) => {
         console.error('错误'+error);
@@ -72,8 +118,37 @@ class Home extends Component {
     Actions.HomeDetailKey({newsData: rowData})
 
   }
+  renderSectionHeader(sectionData,sectionID) {
+//根据当前时间获取是周几
+    var year, month , date ,
+    year = sectionData.substring(0,4)
+    month = sectionData.substring(4,6)-1
+    date = sectionData.substring(6,8)
+
+    var dt = new Date(year, month, date), dt2 = new Date();
+    var weekDay = ["星期天", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+    //周几
+    var zhou = weekDay[dt.getDay()]
+    if (sectionID == 0) {
+      return null
+    }else {
+      return (
+        <View style = {{flex:1,alignItems:'center',justifyContent:'center',height:40,backgroundColor:'rgba(24,144,211,1)'}}>
+          <Text style = {{color: 'white',fontSize:17,}}>
+          {(month+1)+'月'+date+'日'+'  '+zhou}
+          </Text>
+        </View>
+      )
+    }
+  }
+
   //  渲染cell
-  renderRow(rowData) {
+  renderRow(rowData,sectionID,rowID) {
+
+    // console.log('========='+rowData+'----========='+sectionID);
+
+// alert(JSON.stringify(rowData))
+
     return (
       // {this.ButtonClick.bind(this)}
       <TouchableOpacity
@@ -143,12 +218,105 @@ class Home extends Component {
       <HomeTopScrollView  imagesResourse = {top_stories} style = {styles.homeTopScrollView}/>
     )
   }
+  //获取当前日期的前一天
+  getBeforeDay(numberDay) {
+    var date = new Date();
+    var preDate = new Date(date.getTime() - numberDay*24*60*60*1000);  //前numberDay天
+    return preDate;
+  }
+//改变时间的格式为  20161124
+  getDateFormat(date) {
+    var year = date.getFullYear() //获取年份
+    var month =  date.getMonth()+1 //获取月份  0代表一月所以加1
+    var day = date.getDate() //获取天
+    var yearStr = year.toString()//转string
+    var str = yearStr+month+day
+    return str
+  }
+//用于加载更多
+  onEndReached() {
 
+    if (this.state.isLoadingMore) return; //正在加载更多的时候不让再加载，不然如果滑动快的话会重复加载
 
-//传递方法
-  // static propTypes = {
-  //   dataChanged: React.PropTypes.func.isRequired,
-  // };
+    this.setState({
+      isLoadingMore: true,
+    })
+
+    var beforeDay = this.getBeforeDay(page) //page是当前页
+    var day = this.getDateFormat(beforeDay);
+    // console.log(day);
+    let url = "http://news-at.zhihu.com/api/4/news/before/"+day
+    //加载过往消息
+    this.fetchBeforeNewsData(url)
+
+  }
+  fetchBeforeNewsData(url) {
+
+    fetch(url)
+    .then((response)=>{
+      if (response.ok) {
+            return response.json()
+      } else {
+            console.error('服务器繁忙，请稍后再试；\r\nCode:' + response.status)
+      }
+    })
+    .then((responseData) => {
+      //请求成功之后page+1
+      page = page+1
+      // console.log(responseData);
+      // stories = stories.concat(responseData.stories)//数组合并
+
+      allArr.push(responseData)
+      var dataBlob = {},sectionIDs = [],rowIDs = [];
+      for (var i = 0; i < allArr.length; i++) {
+        sectionIDs.push(i) //第一个section
+        dataBlob[i] = allArr[i].date; //时间
+        // alert(JSON.stringify(allArr[i].date))
+        // 3.设置该组中每条数据的结构
+        rowIDs[i] = []
+
+        rowStories = allArr[i].stories
+
+        for (var j = 0; j < rowStories.length; j++) {
+          //    改组中的每条对应的rowId
+          rowIDs[i].push(j);
+          // 把每一行中的内容放入dataBlob对象中
+          dataBlob[i+':'+j] = rowStories[j]
+        }
+      }
+
+      // Array.prototype.push.apply(stories, responseData.stories);//数组合并
+      this.setState({//setState会触发一次重绘
+        dataSource: this.state.dataSource.cloneWithRowsAndSections(dataBlob,sectionIDs,rowIDs),
+        isLoadingMore: false,
+      });
+    })
+    .catch((error) => {
+        console.error('错误'+error);
+    });
+  }
+  renderFooter() {
+    if (this.state.isLoadingMore) {
+      return(
+        <View style = {{flex:1,backgroundColor:'#F5FCFF',alignItems: 'center',
+        justifyContent: 'center',}}>
+          <ActivityIndicator
+            animating={true}
+            style={{
+              width: 80,
+              height: 80,
+            }}
+            size="small" />
+        </View>
+      )
+    }else {
+      return null;
+    }
+  }
+//试图滚动 触发的方法
+  listViewScrolling() {
+
+  }
 
   render() {
 
@@ -177,7 +345,13 @@ class Home extends Component {
              renderHeader = {this.renderHeader}
              enableEmptySections = {true}
              automaticallyAdjustContentInsets = {false}// 如果是scrollView和ListVIew去掉20像素的空白
-            />
+             onEndReached = {this.onEndReached}
+             onEndReachedThreshold = {150} //离底部还有多远的时候开始加载更多
+             renderFooter={this.renderFooter}
+            // onScroll = {this.listViewScrolling.bind(this)}
+             renderSectionHeader = {this.renderSectionHeader}
+            >
+            </ListView>
           </View>
         );
       }
@@ -192,6 +366,10 @@ class Home extends Component {
            renderHeader = {this.renderHeader}
            enableEmptySections = {true}
            automaticallyAdjustContentInsets = {false}// 如果是scrollView和ListVIew去掉20像素的空白
+           onEndReached = {this.onEndReached}
+           onEndReachedThreshold = {150} //离底部还有多远的时候开始加载更多
+           renderFooter={this.renderFooter}
+           renderSectionHeader = {this.renderSectionHeader}
           />
         </View>
       );
@@ -201,25 +379,22 @@ class Home extends Component {
   }
 }
 
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // marginBottom: 49,
-    // width: Dimensions.get('window').width,
-    // height: Dimensions.get('window').height-49,
+  },
+  navigatorView: {
+    width: window.width,
+    backgroundColor: 'red',
   },
   listContainer: {
+    flex: 1,
     backgroundColor: 'rgb(237, 240, 235)',//listView 背景色
   },
-  // rowSeparator: {
-  //   // marginLeft: 15,
-  //   // marginRight: 15,
-  //   // // backgroundColor: 'gray',//分割线的颜色
-  //   height: 1,
-  // },
   homeTopScrollView: {
     flex: 1,
-    backgroundColor: 'red',
     height: 220,
   },
 });

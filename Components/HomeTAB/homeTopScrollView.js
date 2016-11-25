@@ -14,6 +14,8 @@ import Swiper from 'react-native-swiper'
 const windowWidth = Dimensions.get('window').width;
 const HEIGHT = 220;
 
+import {Actions} from 'react-native-router-flux'
+
 const styles = StyleSheet.create({
   wrapper: {
     height: HEIGHT,
@@ -44,6 +46,12 @@ export default class HomeTopScrollView  extends Component {
   constructor(props) {
     super(props);
   }
+//查看轮播图片
+  topImageTouched(rowData) {
+    // alert(JSON.stringify(rowData))
+    Actions.HomeDetailKey({newsData: rowData})
+  }
+
   render() {
     const {
         imagesResourse,
@@ -64,11 +72,18 @@ export default class HomeTopScrollView  extends Component {
           this.props.imagesResourse.map((data,index) => {
             return (
               //这里必须每个都加key
-              <View style={styles.slide}  key = {index} >
-                <Image  key={data.image} resizeMode='stretch' style={styles.image} source={{uri:data.image}}>
-                  <Text style = {styles.headeTitle} numberOfLines={0}>{data.title}</Text>
-                </Image>
-              </View>
+              // activeOpacity 指定封装的视图在被触摸操作激活时以多少不透明度显示（通常在0到1之间）。
+              <TouchableOpacity onPress = {
+                () => this.topImageTouched(data)
+              }
+              activeOpacity = {1}
+              style={styles.slide}
+              key = {index}
+              >
+              <Image  key={data.image} resizeMode='stretch' style={styles.image} source={{uri:data.image}}>
+                <Text style = {styles.headeTitle} numberOfLines={0}>{data.title}</Text>
+              </Image>
+              </TouchableOpacity>
             );
           })
           }
@@ -76,13 +91,4 @@ export default class HomeTopScrollView  extends Component {
 
     );
   }
-  // renderImage(data) {
-  //   return (
-  //     <View style={styles.slide} >
-  //       <Image resizeMode='stretch' style={styles.image} source={{uri:this.props.imagesResourse[0].image}}>
-  //         <Text style = {styles.headeTitle} numberOfLines={0}>路边摊的那些画像的都是大神马？还是谁都可以！</Text>
-  //       </Image>
-  //     </View>
-  //   );
-  // }
 }
